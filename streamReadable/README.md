@@ -79,15 +79,19 @@
     constructor(options) {
       super(options || { decodeStrings: true });
     }
-    _write(chunk, encoding, done) {
+    _write(chunk, encoding, done) { // chunkはバッファで渡されるため変換が必要
       var text;
   
       if (encoding === "buffer") {
-        text = chunk.toString(this._writableState.defaultEncoding);
+        text = chunk.toString(this._writableState.defaultEncoding); // または、options.decodeStrings = true　で文字列に直す
       }
   
+    try{
       process.stdout.write(text);
-  
+    }catch(error){
+      done(error);
+      return;
+    }  
       done();
     }
   }
@@ -97,13 +101,56 @@
 - Shift_JIS のエンコード、デコードには「iconv-lite」を利用。
 
 ### 【関数を使ったエンコード/デコード】
+#### iconv-liteを利用した変換
+- Node.jsが標準でサポートしていない、日本語、中国語、韓国語、台湾語などに対応しているのが特徴
   ```JavaScript
   const iconv = require("iconv-lite");
-  <バッファ> = iconv.encode(<文字列>, "shiftjis");
-  <文字列> = iconv.decode(<バッファ>, "shiftjis");
-  【ストリームを使ったエンコード/デコード】
+  var data = iconv.encode(text, "shiftjis");
+  text = iconv.decode(data, "shiftjis");
 
+  // streamを使った変換は下記
   const iconv = require("iconv-lite");
   iconv.encodeStream("shiftjis");
   iconv.decodeStream("shiftjis");
   ```
+
+#### Bufferを利用した変換
+- エンコード
+  ```JavaScript
+  /*
+  * @param text
+  * @param endoding(default: 'utf8')
+  */
+  buffer.write(text [,encoding]);
+  ```
+- デコード
+  ```JavaScript
+    /*
+    * @param endoding(default: 'utf8')
+    */
+  buffer.toString([encoding])
+  ```
+- Bufferで利用可能なエンコードの種類
+
+  |encoding |説明  |
+  |:---- |:---- |
+  |ascii|7bitのアスキーデータ|
+  |utf8|UTF-8文字|
+  |uth16|2バイトまたは4バイトのリトルエンディアンUnicode文字|
+  |ucs2|’utf16le’のエイリアス|
+  |base64|Base64エンコード文字|
+  |latin1|1バイトのエンコード文字|
+  |binary|'latin1'のエイリアス|
+  |hex|2組の16進数文字|
+
+shiftj-jisがないことに注意！
+
+- iconv-liteで利用可能なエンコードの種類
+
+  |encoding |説明  |
+  |:---- |:---- |
+  |uth16be|UTF16-BE ビッグエディアン|
+  |uth16|UTF16(BOM付)|
+  |cp1252|CP1242|
+  |shiftjis|Shift-JIS|
+  |eucjp|EUD-JP|
